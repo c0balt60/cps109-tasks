@@ -25,7 +25,7 @@ Task 2
 # input should be in order of a, b, c
 read: str = input("Input 3 numbers seperated by a space: ")
 rawValues: list[str] = read.split(" ")
-values: list[str] = []
+values: list[float] = []
 [values.append(float(x)) for x in rawValues]
 
 divisor: float = 2 * (values[0])
@@ -54,7 +54,7 @@ Task 3
 # input should be in order of a, b, c
 read: str = input("Input 3 numbers seperated by a space: ")
 rawValues: list[str] = read.split(" ")
-values: list[str] = []
+values: list[float] = []
 [values.append(float(x)) for x in rawValues]
 
 a,b,c = values
