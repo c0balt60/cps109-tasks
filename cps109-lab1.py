@@ -1,4 +1,12 @@
+'''
+    Author: Andrii N
+    Date: 2025-09-08
+    Description: Lab tasks
+
+'''
+
 from math import sqrt
+
 
 '''
 Task 1
