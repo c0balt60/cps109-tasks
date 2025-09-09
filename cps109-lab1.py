@@ -5,6 +5,7 @@ Task 1
 > Convert celcius to farenheit / kelvin
 '''
 
+print("~ Task 1 ~")
 read: str = input("Input Celcius: ")
 celcius: float = float(read)
 
@@ -22,6 +23,7 @@ Task 2
 > Determine roots using quadratic formula
 '''
 
+print("\n~ Task 2 ~")
 # input should be in order of a, b, c
 read: str = input("Input 3 numbers seperated by a space: ")
 rawValues: list[str] = read.split(" ")
@@ -37,6 +39,8 @@ def discrim(sign: int) -> float | str:
     try:
         calc: float = sqrt( (b**2) - (4 * a * c) )
         val += calc
+        round(val, 2)
+
     except ValueError:
         print("Discriminant has negative sqrt. ")
         val = "None"
@@ -51,6 +55,7 @@ Task 3
 > Determine if triangle is possible off of inputs
 '''
 
+print("\n~ Task 3 ~")
 # input should be in order of a, b, c
 read: str = input("Input 3 numbers seperated by a space: ")
 rawValues: list[str] = read.split(" ")
@@ -74,6 +79,7 @@ Task 4
 > Calculate pentagon area
 '''
 
+print("\n~ Task 4 ~")
 read: str = input("Input pentagon side length: ")
 length: float = float(read)
 
@@ -87,6 +93,7 @@ Task 5
 > Find nth fibonacci number
 '''
 
+print("\n~ Task 5 ~")
 read: str = input("Enter fibonacci sequence number: ")
 fibNum: int = int(read)
 
