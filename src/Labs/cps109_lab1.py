@@ -74,8 +74,8 @@ a,b,c = values
 
 print(
     (
-        max(a+b, c)!=c 
-        and max(a+c,b)!=b 
+        max(a+b, c)!=c
+        and max(a+c,b)!=b
         and max(c+b,a)!=a
     )
     and "Is a triangle" or "Not a triangle"
