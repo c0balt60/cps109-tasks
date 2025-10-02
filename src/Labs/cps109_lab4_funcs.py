@@ -70,8 +70,7 @@ def odddigitsum(num: int):
 
     '''
 
-    filtered: int = sum([int(n) for n in str(abs(num)) if int(n) % 2 != 0])
-    return filtered
+    return sum([int(n) for n in str(abs(num)) if int(n) % 2 != 0])
 
 
 # --------------------------------------------------------------
@@ -118,9 +117,8 @@ def digitcat(s: str):
     '''
 
     # Not using regex for straightforwardness
-    filtered: list[int] = [x for x in s if x.isdigit()]
-    joined = "".join(filtered)
-    return int(joined) if len(joined) > 0 else None
+    filtered = "".join([x for x in s if x.isdigit()])
+    return int(filtered) if len(filtered) > 0 else None
 
 
 # --------------------------------------------------------------
@@ -199,6 +197,7 @@ def maxbytype(items: list):
         if isinstance(x, str):
             largest[2] = x if largest[2] < x else largest[2]
 
+    # Check for changed values
     largest = [None if v == clone[i] else v for i,v in enumerate(largest)]
 
     return tuple(largest)
