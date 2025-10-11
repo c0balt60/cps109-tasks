@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 import unittest
-import cps109_lab3 as lab3_funcs
+import lab3_funcs
 
 class TestLab3(unittest.TestCase):
     '''
