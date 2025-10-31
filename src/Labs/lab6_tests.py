@@ -26,18 +26,18 @@ class TestLab6(unittest.TestCase):
     def test_two_summers_6(self):
         self.assertEqual(lab6_funcs.two_summers([1, 2, 2, 3, 4, 4], 5), (1, 4))
 
-    # def test_count_dominators_1(self):
-    #     self.assertEqual(lab6_funcs.count_dominators([]), 0)
-    # def test_count_dominators_2(self):
-    #     self.assertEqual(lab6_funcs.count_dominators([42]), 1)
-    # def test_count_dominators_3(self):
-    #     self.assertEqual(lab6_funcs.count_dominators([5, 4, 3, 2, 1]), 5)
-    # def test_count_dominators_4(self):
-    #     self.assertEqual(lab6_funcs.count_dominators([1, 2, 3, 4, 5]), 1)
-    # def test_count_dominators_5(self):
-    #     self.assertEqual(lab6_funcs.count_dominators([13, 12, 7, 6, 1, 9, 8, 4]), 5)
-    # def test_count_dominators_6(self):
-    #     self.assertEqual(lab6_funcs.count_dominators([42, 7, 12, 9, 13, 5]), 3)
+    def test_count_dominators_1(self):
+        self.assertEqual(lab6_funcs.count_dominators([]), 0)
+    def test_count_dominators_2(self):
+        self.assertEqual(lab6_funcs.count_dominators([42]), 1)
+    def test_count_dominators_3(self):
+        self.assertEqual(lab6_funcs.count_dominators([5, 4, 3, 2, 1]), 5)
+    def test_count_dominators_4(self):
+        self.assertEqual(lab6_funcs.count_dominators([1, 2, 3, 4, 5]), 1)
+    def test_count_dominators_5(self):
+        self.assertEqual(lab6_funcs.count_dominators([13, 12, 7, 6, 1, 9, 8, 4]), 5)
+    def test_count_dominators_6(self):
+        self.assertEqual(lab6_funcs.count_dominators([42, 7, 12, 9, 13, 5]), 3)
 
     def test_safe_squares_rooks_1(self):
         self.assertEqual(lab6_funcs.safe_squares_rooks(3, []), 9)

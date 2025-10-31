@@ -108,9 +108,18 @@ def count_dominators(items: list[int]):
 
     '''
     count = 0
+    length = len(items)
+    copy = items[1:]
 
     for i,v in enumerate(items):
-        sort = items.copy()[:i]
+        if i+1 >= length:
+            count += 1
+            continue
+
+        if v > max(copy):
+            count += 1
+
+        copy.pop(0)
 
     return count
 
