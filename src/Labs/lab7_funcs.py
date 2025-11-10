@@ -136,10 +136,6 @@ def nested_reverse(items: Any) -> Any:
         return items
 
     last = items[-1:]
-    all = nested_reverse(items[:-1])
+    rest = nested_reverse(items[:-1])
 
-    return (last if type(last[0]) != list else [nested_reverse(last[0])]) + all
-
-
-
-print(nested_reverse([1, 4, [2, 'abc'], 'def']))
+    return (last if type(last[0]) != list else [nested_reverse(last[0])]) + rest
