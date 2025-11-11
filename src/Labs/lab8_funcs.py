@@ -70,14 +70,13 @@ def max_pop(items: list[tuple[str, int]]):
     '''
 
     l_name, l_size = None, 0
-    for v in items:
-        try:
+    try:
+        for v in items:
             larger = l_size < v[1]
             l_size = larger and v[1] or l_size
             l_name = larger and v[0] or l_name
-        except Exception:
-            l_name = None
-            break
+    except Exception:
+        l_name = None
 
     return l_name
 
