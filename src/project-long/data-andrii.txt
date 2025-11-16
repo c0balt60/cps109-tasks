@@ -1,0 +1,7 @@
+andrii,ds
+---Budget
+2025-11-06,expense,savings,500
+---Categories
+Savings
+School
+---Goals
