@@ -211,3 +211,7 @@ __marimo__/
 
 # Ignore data files from project
 src/project/*data*.txt
+
+# Ignore database files from project
+src/project/*database*.db
+src/project/*.db

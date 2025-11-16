@@ -1,36 +1,23 @@
 '''
     Author: Andrii Naumenko
-    Description: CPS109 Project
-    Date: 2025-10-23
+    Description: CPS109 Project simplified
+    Date: 2025-11-14
 '''
-# pylint: disable=C0301:line-too-long
-# pyright: ignore[reportPossiblyUnboundVariable]
-
-from datetime import date, timedelta
+import argparse
+from datetime import timedelta, date as Date
 from enum import Enum
 import functools
+import shlex
+import sqlite3
 from typing import Any, Callable
+from types import SimpleNamespace
 
-TODAY = date.today()
-TOMORROW = date.today() + timedelta(days=1)
+# File Defs
+DATA_FILE = "todo-database.db"
 
-LOGIN_FILE = "logins.txt"
-DATA_FILE_PREFIX = "data-"
-
-SECTIONS = [
-    "Budget",
-    "Categories",
-    "Goals",
-]
-
-DEFAULT_DATA = [
-    "---Budget",
-    "",
-    "---Categories",
-    "",
-    "---Goals",
-    ""
-]
+# Dates
+TODAY = Date.today()
+TOMORROW = TODAY + timedelta(days=1)
 
 class State(Enum):
     '''
@@ -59,7 +46,12 @@ def color(text: str, shade: str) -> str:
     '''
     return f"{getattr(Colors, shade)}{text}{Colors.RESET}"
 
-def error_boundary(fallback: Any = State.FAIL, err_msg: str = "Error caught") -> Callable[..., Any]:
+# CLI Message Defs
+PROG_NAME = "TO-DO"
+WELCOME_MSG = f"{color(PROG_NAME, "YELLOW")} CLI"
+
+# Util Functions
+def error_boundary(fallback: Any = State.FAIL, err_msg: str="Error caught") -> Callable[..., Any]:
     '''
     A decorator to catch errors for functions critical to the main loop.
     Catches the exception and returns the fallback value.
@@ -75,8 +67,10 @@ def error_boundary(fallback: Any = State.FAIL, err_msg: str = "Error caught") ->
         def wrapper(*args: Any, **kwargs: Any):
             try:
                 return func(*args, **kwargs)
-            except Exception as e: # pylint: disable=W0718:broad-exception-caught
-                print(f"{color("[Exception]", "RED")} -> {color(func.__name__, "BLUE")}: {err_msg} >> Exception: {e}")
+            except Exception as e:
+                print(
+                    f"{color("[Exception]", "RED")} -> {color(func.__name__, "BLUE")}: {err_msg} >> Exception: {e}"
+                    )
                 return fallback
         return wrapper
     return decorator
@@ -96,372 +90,263 @@ def create_table(headers: list[str], data: list[list[str]]) -> str:
     column_widths = [len(header) for header in headers]
     for row in data:
         for i, item in enumerate(row):
-            column_widths[i] = max(column_widths[i], len(item))
+            column_widths[i] = max(column_widths[i], len(str(item)))
 
     # Create separator line
-    separator = "+" + "+".join(["-" * (width + 2) for width in column_widths]) + "+"
+    separator = "+" + "+".join(
+        ["-" * (width + 2) for width in column_widths]
+        ) + "+"
 
     # Format headers
-    header_line = "|" + "|".join([f" {header:<{column_widths[i]}} " for i, header in enumerate(headers)]) + "|"
+    header_line = "|" + "|".join(
+        [f" {header:<{column_widths[i]}} " for i, header in enumerate(headers)]
+        ) + "|"
 
     # Format data rows
     data_lines: list[str] = []
     for row in data:
-        row_line = "|" + "|".join([f" {item:<{column_widths[i]}} " for i, item in enumerate(row)]) + "|"
+        row_line = "|" + "|".join(
+            [f" {str(item):<{column_widths[i]}} " for i, item in enumerate(row)]
+            ) + "|"
         data_lines.append(row_line)
 
     # Combine all parts
     table_output = [separator, header_line, separator] + data_lines + [separator]
     return "\n".join(table_output)
 
-# print(
-#     create_table(
-#         ["Name", "Address"],
-#         [
-#             ["Alex", "150 Road"],
-#             ["Max", "500 Street"]
-#         ]
-#     )
-# )
-
-class BudgetItem:
+def parser_cmds() -> argparse.ArgumentParser:
     '''
-    Abstracted each specific budget item for more fine control
+    Setup cli commands and return the parser
+
+    :returns ArgumentParser: Parser with all the command
     '''
 
-    def __init__(self, date_val: date | str, budget_type: str, category: str, amount: str) -> None:
-        self.date = date_val if isinstance(date_val, date) else date.fromisoformat(date_val)
-        self.type = budget_type
-        self.category = category
-        self.amount = amount
+    parser = argparse.ArgumentParser(description=f"{PROG_NAME} CLI")
+    sub = parser.add_subparsers(dest="command")
 
-    def __str__(self) -> str:
-        return f"{self.date},{self.type},{self.category},{self.amount}"
+    # Add Command
+    add_cmd = sub.add_parser("add", help="Insert new to-do item into your list. ")
+    add_cmd.add_argument("name")
+    add_cmd.add_argument(
+        "-d",
+        "--description",
+        required=False,
+        help="short description of the task"
+    )
+    add_cmd.add_argument(
+        "-p",
+        "--priority",
+        type=int,
+        default=3,
+        help="priority of task. (1) = Highest"
+    )
+    add_cmd.add_argument("--due", default=None, help="due date of the task")
+    add_cmd.add_argument("-v", "--verbose", action="store_true", help="print modified task list. ")
+
+    # Del Command
+    del_cmd = sub.add_parser("del", help="delete a existing to-do item. ")
+    del_cmd.add_argument("id", help="ID for to-do to be deleted. ")
+    del_cmd.add_argument(
+        "-m",
+        "--multiple",
+        action="store_true",
+        help="accept multiple deletion id's. must be separated by comma"
+    )
+    del_cmd.add_argument("-v", "--verbose", action="store_true", help="print modified task list. ")
+
+    # List Command
+    list_cmd = sub.add_parser("list", help="List to-do tasks. ")
+    list_cmd.add_argument(
+        "-c",
+        "--completed",
+        action="store_true",
+        help="list completed tasks (ascending). "
+    )
+    list_cmd.add_argument(
+        "-s",
+        "--sort",
+        choices=["priority", "due", "created"],
+        help="list by type. "
+    )
+
+    # Exit Command
+    sub.add_parser("exit", help="Exit the CLI. ")
+
+    return parser
 
 class User:
     '''
-    User abstraction for handling specific-user related actions (when logged in)
+    User abstraction for handling specific-user related actions
     '''
 
-    def __init__(self, username: str, password: str) -> None:
-        self.login = username+","+password
-        self.username = username
-        self.password = password
-        self.items: list[BudgetItem] = []
-        self.categories: list[str] = []
-        self.goals: list[str] = []
-        self.load_data()
+    def __init__(self) -> None:
+        self.conn = sqlite3.connect(DATA_FILE)
+        self._default_sort = SimpleNamespace(command="list", sort=None, completed=None)
+        self.load()
 
-    def __del__(self):
-        print(color("Logging out...", "GREEN"))
-        self.save_data()
+    def __del__(self) -> None:
+        self.conn.cursor().close()
+        self.conn.close()
 
-    #@error_boundary(err_msg="Failed to load data for client.")
-    def load_data(self):
+    def load(self) -> None:
         '''
-        Read saved data from the txt file and load it in
+        Load database in for user
         '''
-        with open(DATA_FILE_PREFIX + self.username + ".txt", 'r', encoding="utf-8") as file:
-            lines = [line.strip() for line in file.readlines()]
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT,
+                priority INTEGER DEFAULT 3,
+                due TEXT,
+                created TEXT,
+                completed INTEGER DEFAULT 0
+            );
+        """)
+        self.conn.commit()
 
-        # username = lines[0].split(":")[1]
-        # password = lines[1].split(":")[1]
-
-        # Get indexes
-        budget_index = lines.index("---Budget") + 1
-        category_index = lines.index("---Categories") + 1
-        goal_index = lines.index("---Goals") + 1
-
-        # Gather Budget section
-        # print(budget_index, category_index)
-        for line in lines[budget_index:category_index-1]:
-            # print(line)
-
-            if line.strip():
-                # print(line)
-                date_str, budget_type, category, amount = line.split(",", 3)
-                self.items.append(
-                    BudgetItem(date_str, budget_type, category, amount)
-                )
-
-        for line in lines[category_index:goal_index-1]:
-            self.categories.append(line)
-
-        # Gather Goals
-        for line in lines[goal_index:]:
-            self.goals.append(line)
-
-
-        # print("Class dict:", self.__dict__)
-
-    def save_data(self):
+    @error_boundary(err_msg="Failed to execute command. ")
+    def command(self, args: argparse.Namespace | Any) -> None:
         '''
-        Write saved class data to txt file for re-use.
+        Execute the command for given args
+
+        :param args: Arguments from the command
+        :type args: Namespace
         '''
-        with open(DATA_FILE_PREFIX + self.username + ".txt", 'w', encoding="utf-8") as file:
-            file.write(self.login + "\n")
 
-            self.categories = list(filter(None, self.categories))
-            self.goals = list(filter(None, self.goals))
+        cursor = self.conn.cursor()
 
-            # Write Budget
-            file.write("---Budget\n")
-            for item in self.items:
-                file.write(f"{str(item)}\n")
-
-            # Write categories
-            file.write("---Categories\n")
-            for cat in self.categories:
-                file.write(f"{cat}\n")
-
-            # Write goals
-            file.write("---Goals\n")
-            for goal in self.goals:
-                file.write(f"{goal}\n")
-
-    #@error_boundary(err_msg="Failed to execute client command.")
-    def command(self, cmd: str):
-        '''
-        Method to process individual clients' commands
-
-        :param cmd: Command to process
-        :type cmd: String
-        '''
-        action = None
-        modifiers = None
-
-        if cmd.find('"') != -1:
-            str_before = cmd[:cmd.find('"')].split(" ")[:-1]
-            #print(str_before)
-            action = str_before[0]
-            modifiers = str_before[1:] + [cmd[cmd.find('"'):].strip('"')]
-        else:
-            action, *modifiers = cmd.split(" ")
-
-
-        # If no modifiers, display command help
-        if len(modifiers) < 1:
-            getattr(self, f"_{action}")(["-h"])
-            return
-        # print(action, modifiers)
-        match action:
-            case "budget":
-                self._budget(modifiers)
-            case "goal":
-                self._goal(modifiers)
-            case "category":
-                self._category(modifiers)
-            case _:
-                pass
-
-    def _budget(self, modifiers: list[str]):
-        #to_int = int(modifiers[1])
-        flag = modifiers[0]
-        match flag:
+        match(args.command):
             case "add":
-                print(color(">", "BLUE"), f"added {flag}: {modifiers[1]}")
-                self.items.append(
-                    BudgetItem(
-                        TODAY,
-                        modifiers[1],
-                        modifiers[2],
-                        modifiers[3]
-                    )
+                self._add_task(
+                    args.name,
+                    args.description,
+                    args.priority,
+                    args.due
                 )
-            case "show":
-                print([str(item) for item in self.items])
+                print(
+                    f">\t{color("Created task:", "BLUE")} '{args.name}'"
+                )
+
+            case "list":
+                # Process no items
+                size = cursor.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+                if size < 1:
+                    print(
+                        f"> {color("No items saved ", "YELLOW")}"
+                    )
+                    return
+
+                # Process sort
+                if not (args.sort or args.completed):
+                    cursor.execute("SELECT * FROM tasks")
+
+                if args.sort:
+                    cursor.execute(f"SELECT * FROM tasks ORDER BY {args.sort} ASC")
+
+                if args.completed:
+                    cursor.execute(f"SELECT * FROM tasks ORDER BY {args.completed} ASC")
+
+                rows = cursor.fetchall()
+                tbl = create_table(
+                    ["ID", "Task", "Description", "Priority", "Due", "Created", "Completed"],
+                    [
+                        list(row) for row in rows
+                    ]
+                )
+                print(
+                    f">\t{color("List of TO-DO's", "BLUE")}"
+                )
+                print(tbl)
+
+            case "del":
+                cursor.execute(
+                    f"DELETE FROM tasks WHERE id IN ({','.join('?' * len(args.id.strip(",")))})",
+                    (args.id)
+                    )
+
+                print(
+                    f"{color("> Deleted to-do", "RED")}"
+                )
+
             case _:
                 pass
 
+        self.conn.commit()
 
+        # Print changes if command is verbose
+        # Not exactly the intended use of the word
+        if hasattr(args, "verbose"):
+            self.command(
+                self._default_sort
+            )
 
-    def _goal(self, modifiers: list[str]):
-        flag = modifiers[0]
-        match flag:
-            case "list" | "-l":
-                print(color("> Goals", "BLUE"))
-                print(self.goals)
-            case "help" | "-h":
-                print(color("\n~ Goal Help ~\n", "CYAN"))
-            case _:
-                pass
+    @error_boundary(err_msg="Attempted write to 'add-task' failed.")
+    def _add_task(
+            self,
+            title: str,
+            desc: str | None=None,
+            priority: int=3,
+            due: str | None=None
+        ) -> None:
+        '''
+        (private)
+        Add task to database
 
-    def _category(self, modifiers: list[str]):
-        flag = modifiers[0]
-        match flag:
-            case "add" | "-a":
-                if modifiers[1]:
-                    if modifiers[1].find("-") != -1:
-                        print(color("Only strings can be added to categries not flags. ", "RED"))
-                        return
-
-                    if modifiers[1] in self.categories:
-                        return
-                    self.categories.append(modifiers[1])
-                print(self.categories)
-            case "list" | "-l":
-                print(color("> Categories", "BLUE"))
-                print(self.categories)
-            case "help" | "-h":
-                print(color("\n~ Category Help ~\n", "CYAN"))
-                print("\tcategory add 'name'\t--> Creates new category")
-                print("\tcategory list [-l]\t|> Lists all current categories")
-                print("\tcategory help [-h]\t|> Shows this message\n")
-            case _:
-                pass
-
-@error_boundary(err_msg="Failed to login.")
-def try_login(username: str, password: str) -> State:
-    '''
-    Tries logging into your "account"
-
-    :param username: Client username
-    :type username: String
-    :param password: Client password
-    :type password: String
-    :returns: Login successful state
-    '''
-
-    # Try loging in
-    with open(LOGIN_FILE, 'r', encoding="utf-8") as file:
-        for login in file:
-            usr, pswrd = login.strip().split(",")
-            if username == usr and password == str(pswrd):
-                return State.SUCCESS
-
-    return State.FAIL
-
-@error_boundary(err_msg="Failed to create new login.")
-def new_login(username: str, password: str) -> State:
-    '''
-    Tries to create new login for user
-
-    :param username: Client username
-    :type username: String
-    :param password: Client password
-    :type password: String
-    :returns: State for creation of new login
-    '''
-
-    # Check for old login
-    old_login = try_login(username, password)
-    if old_login == State.SUCCESS:
-        return State.FAIL
-
-    # Create login
-    with open(LOGIN_FILE, 'a', encoding="utf-8") as logins:
-        logins.write(f"{username},{password}\n")
-        return State.SUCCESS
-
-    return State.FAIL
-
-def show_help() -> None:
-    '''
-    Show the help command
-    '''
-    print(f'''
-        {color("~ Commands ~","BLUE")}
-    login -> "l" "login"
-    new login -> "n" "new-login"
-    help (this menu) -> "h" "help"
-
-        {color("~ Account (must be logged in) ~","BLUE")}
-    logout -> "out" "x" "logout"
-    add (expense | income) -> Adds float to specified section
-    set (budget | expenses | income) -> Overwrite specified section
-        ''')
-
-@error_boundary(err_msg="Failed to create new database")
-def new_data(username: str, password: str) -> State:
-    '''
-    Creates new data for a new login
-    '''
-
-    # TODO: Add try_login boundrary first to check for duplicates
-
-    try:
-        with open(DATA_FILE_PREFIX + username + ".txt", 'x', encoding="utf-8"):
-            print("New file created.")
-        print("Created new file for user.")
-    except FileExistsError:
-        print("File already exists.")
-        return State.SUCCESS
-
-
-    # Set password
-    with open(DATA_FILE_PREFIX + username + ".txt", 'a', encoding="utf-8") as data:
-        data.write(f"{username},{password}\n")
-        data.writelines([default + "\n" for default in DEFAULT_DATA])
-
-        return State.SUCCESS
-
-    return State.FAIL
+        :param title: Title of task
+        :param desc: Description of task
+        :param priority: Priority of the task
+        :param due: Due date of task
+        '''
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT INTO tasks (title, description, priority, due, created)
+            VALUES (?, ?, ?, ?, ?)
+        """, (title, desc, priority, due, TODAY.isoformat()))
+        self.conn.commit()
 
 def main() -> None:
-    '''Main entry'''
-    in_loop = True
-    login_info = None
-    users: dict[str, User] = {}
+    '''
+    Main CLI definition
+    '''
+    in_cli = True
+    user = User()
+    parser = parser_cmds()
 
-    while in_loop:
-        # Gather CLI input
-        user_input = input(f"\nFinancer cli{color(" @"+login_info, "BLUE") if login_info else ""}: ")
+    print(WELCOME_MSG, " ", f"<{TODAY.isoformat()}>")
 
-        # Logged in user
-        if login_info and users[login_info]:
-            user = users[login_info]
-            # Handle logout
-            if user_input in ["x", "logout", "out"]:
-                del user
-                users.pop(login_info)
-                login_info = None
-                continue
+    while in_cli:
+        # Get user input
+        usr_input = input("\n> ")
 
-            user.command(user_input) # type: ignore
-
+        # Ignore blank input
+        if not usr_input.strip():
             continue
 
-        # Use input
-        match user_input:
-            # Login
-            case "l" | "login":
-                print("\n\t~ Login ~")
+        # Convert string to list using shell syntax
+        arg_to_parse = shlex.split(usr_input)
 
-                if login_info:
-                    print(f"Already logged in as: {login_info}")
+        # Catch parser error
+        try:
+            args = parser.parse_args(arg_to_parse)
+        except SystemExit:
+            continue
 
-                usrnm = input("Enter username: ")
-                pswrd = input("Enter password: ")
+        # Exit CLI
+        if args.command == "exit":
+            in_cli = False
+            break
 
-                if try_login(usrnm, pswrd) == State.SUCCESS:
-                    login_info = usrnm
-                    # Create new user
-                    users[login_info] = User(usrnm,pswrd)
-                else:
-                    print(color("Unable to find login information. ", "RED"))
+        user.command(args)
 
-            case "n" | "new-login":
-                print("\n\t~ New Login ~")
-                usrnm = input("Enter username: ")
-                pswrd = input("Enter password: ")
-                new = new_login(usrnm, pswrd)
-                if new == State.SUCCESS:
-                    print("Created new account!")
-                    new_data(usrnm, pswrd)
-                else:
-                    print("Failed to create new account.")
-
-            case "h" | "help":
-                show_help()
-            case "exit":
-                break
-            case _:
-                pass
+    # Delete user session on exit
+    del user
 
 if __name__ == "__main__":
     try:
         main()
-    except KeyboardInterrupt:
-        print(color("\n\nKeyboard interrupt exit...", "RED"))
+    except (EOFError, KeyboardInterrupt):
+        print(color("\n> Keyboard interrupt exit...", "RED"))
     finally:
-        print(color("\nExiting Financer...", "GREEN"))
+        print(color(f"> Exiting {PROG_NAME}...", "GREEN"))
