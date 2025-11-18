@@ -164,15 +164,9 @@ def parser_cmds() -> argparse.ArgumentParser:
     # List Command
     list_cmd = sub.add_parser("list", help="List to-do tasks. ")
     list_cmd.add_argument(
-        "-c",
-        "--completed",
-        action="store_true",
-        help="list completed tasks (ascending). "
-    )
-    list_cmd.add_argument(
         "-s",
         "--sort",
-        choices=["priority", "due", "created"],
+        choices=["priority", "due", "created", "completed"],
         help="list by type. "
     )
 
@@ -252,14 +246,14 @@ class User:
 
         match(args.command):
             case "add":
-                self._add_task(
-                    args.name,
-                    args.description,
-                    args.priority,
-                    args.due
+                cursor.execute("""
+                        INSERT INTO tasks (title, description, priority, due, created)
+                        VALUES (?, ?, ?, ?, ?)
+                    """,
+                    tuple(args.__dict__.values())[1:-1] + (TODAY.isoformat(),)
                 )
                 print(
-                    f">\t{color("Created task:", "BLUE")} '{args.name}'"
+                    f"> {color("Created task:", "BLUE")} '{args.name}'"
                 )
 
             case "list":
@@ -272,16 +266,12 @@ class User:
                     return
 
                 # Process sort without args
-                if not (args.sort or args.completed):
+                if not args.sort:
                     cursor.execute("SELECT * FROM tasks")
 
                 # Sort by specific
                 if args.sort:
-                    cursor.execute(f"SELECT * FROM tasks ORDER BY {args.sort} ASC")
-
-                # Sort by completed
-                if args.completed:
-                    cursor.execute(f"SELECT * FROM tasks ORDER BY {args.completed} ASC")
+                    cursor.execute(f"SELECT * FROM tasks ORDER BY {args.sort} {args.sort=="completed" and "DESC" or "ASC"}")
 
                 rows = cursor.fetchall()
                 tbl = create_table(
@@ -291,7 +281,7 @@ class User:
                     ]
                 )
                 print(
-                    f">\t{color("List of TO-DO's", "BLUE")}"
+                    f"> {color("List of TO-DO's", "BLUE")}"
                 )
                 print(tbl)
 
@@ -320,7 +310,7 @@ class User:
                     tuple(updates.values()) + (args.id,)
                 )
                 print(
-                    f"{color("> Updated to-do", "YELLOW")}"
+                    f"> {color("Updated to-do ", "YELLOW")}"
                 )
 
             case "del":
@@ -329,7 +319,7 @@ class User:
                     (args.id)
                 )
                 print(
-                    f"{color("> Deleted to-do", "RED")}"
+                    f"> {color("Deleted to-do(s) ", "RED")}"
                 )
 
             case _:
@@ -342,35 +332,9 @@ class User:
         # Print changes if command is verbose
         # Not exactly the intended use of the word
         if hasattr(args, "verbose") and args.verbose:
-            print("Args: ", args)
             self.command(
                 self._default_sort
             )
-
-    @error_boundary(err_msg="Attempted write to 'add-task' failed.")
-    def _add_task(
-            self,
-            title: str,
-            desc: str | None=None,
-            priority: int=3,
-            due: str | None=None
-        ) -> None:
-        '''
-        (private)
-        Add task to database
-
-        :param title: Title of task
-        :param desc: Description of task
-        :param priority: Priority of the task
-        :param due: Due date of task
-        '''
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO tasks (title, description, priority, due, created)
-            VALUES (?, ?, ?, ?, ?)
-        """, (title, desc, priority, due, TODAY.isoformat()))
-        self.conn.commit()
-        cursor.close()
 
 # Main Entry
 def main() -> None:
