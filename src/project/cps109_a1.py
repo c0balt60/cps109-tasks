@@ -340,7 +340,6 @@ def main() -> None:
     """
     Main loop for the CLI
     """
-    in_cli = True
     user = User()
     parser = parser_cmds()
 
@@ -348,7 +347,7 @@ def main() -> None:
     print("\n" + f"{WELCOME_MSG}{'':>{4}}<{TODAY.isoformat()}>")
     print(WELCOME_SUB)
 
-    while in_cli:
+    while True:
         # Get user input
         usr_input = input("\n> ")
 
@@ -367,7 +366,6 @@ def main() -> None:
 
         # Exit CLI
         if args.command == "exit":
-            in_cli = False
             break
 
         user.command(args)
