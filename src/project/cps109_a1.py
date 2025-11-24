@@ -1,13 +1,15 @@
-'''
-    Author: Andrii Naumenko
-    Description: CPS109 Project simplified
-    Date: 2025-11-14
-'''
+"""
+Author: Andrii Naumenko
+Date: 2025-11-14
+Description:
+
+
+"""
+# Disable linter warnings for prod
 # pylint: disable=broad-except, line-too-long, missing-function-docstring, consider-iterating-dictionary
 
 import argparse
 from datetime import timedelta, date as Date
-from enum import Enum
 import functools
 import shlex
 import sqlite3
@@ -21,41 +23,43 @@ DATA_FILE = "todo-database.db"
 TODAY = Date.today()
 TOMORROW = TODAY + timedelta(days=1)
 
-class State(Enum):
-    '''
-    Enum for general states
-    '''
-    FAIL = 0
-    SUCCESS = 1
 
 class Colors:
-    '''
+    """
     Terminal colors for asthetics
-    '''
-    BLACK = '\033[30m'
-    RED = '\033[31m'
-    GREEN = '\033[32m'
-    YELLOW = '\033[33m'
-    BLUE = '\033[34m'
-    MAGENTA = '\033[35m'
-    CYAN = '\033[36m'
-    WHITE = '\033[37m'
-    RESET = '\033[0m'
+    """
+
+    BLACK = "\033[30m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
+    RESET = "\033[0m"
+
 
 def color(text: str, shade: str) -> str:
-    '''
+    """
     Utility for coloring a string.
-    '''
+    """
     return f"{getattr(Colors, shade)}{text}{Colors.RESET}"
+
 
 # CLI Message Defs
 PROG_NAME = "TO-DO"
-WELCOME_MSG = f"{color(PROG_NAME, "YELLOW")} CLI"
-WELCOME_SUB = f"A {color("short", "BLUE")} and {color("concise", "CYAN")} task tracker. "
+WELCOME_MSG = f"{color(PROG_NAME, 'YELLOW')} CLI"
+WELCOME_SUB = (
+    f"A {color('short', 'BLUE')} and {color('concise', 'CYAN')} task tracker. "
+)
+
 
 # Util Functions
-def error_boundary(fallback: Any = State.FAIL, err_msg: str="Error caught") -> Callable[..., Any]:
-    '''
+def error_boundary(
+    fallback: Any = None, err_msg: str = "Error caught"
+) -> Callable[..., Any]:
+    """
     A decorator to catch errors for functions critical to the main loop.
     Catches the exception and returns the fallback value.
 
@@ -63,7 +67,7 @@ def error_boundary(fallback: Any = State.FAIL, err_msg: str="Error caught") -> C
     :type fallback: Any
     :param err_msg: Error message for the given function
     :type err_msg: String
-    '''
+    """
 
     # Capture decorated function and hook the error handler to it
     def decorator(func: Callable[..., Any]):
@@ -73,14 +77,17 @@ def error_boundary(fallback: Any = State.FAIL, err_msg: str="Error caught") -> C
                 return func(*args, **kwargs)
             except Exception as e:
                 print(
-                    f"{color("[Exception]", "RED")} -> {color(func.__name__, "BLUE")}: {err_msg} >> Exception: {e}"
-                    )
+                    f"{color('[Exception]', 'RED')} -> {color(func.__name__, 'BLUE')}: {err_msg} >> Exception: {e}"
+                )
                 return fallback
+
         return wrapper
+
     return decorator
 
+
 def create_table(headers: list[str], data: list[list[str]]) -> str:
-    '''
+    """
     Create a table using minimal elements for data output.
 
     :param headers: List of headers for the table
@@ -88,7 +95,7 @@ def create_table(headers: list[str], data: list[list[str]]) -> str:
     :param data: List of lists of strings containing the data
     :type data: list[list[str]]
     :returns: Formatted table string
-    '''
+    """
 
     # Calculate maximum width for each column
     column_widths = [len(header) for header in headers]
@@ -97,36 +104,43 @@ def create_table(headers: list[str], data: list[list[str]]) -> str:
             column_widths[i] = max(column_widths[i], len(str(item)))
 
     # Create separator line
-    separator = "+" + "+".join(
-        ["-" * (width + 2) for width in column_widths]
-        ) + "+"
+    separator = "+" + "+".join(["-" * (width + 2) for width in column_widths]) + "+"
 
     # Format data using f-string literals and
     #  aligning to the left ':<'
 
     # Format headers
-    header_line = "|" + "|".join(
-        [f" {header:<{column_widths[i]}} " for i, header in enumerate(headers)]
-        ) + "|"
+    header_line = (
+        "|"
+        + "|".join(
+            [f" {header:<{column_widths[i]}} " for i, header in enumerate(headers)]
+        )
+        + "|"
+    )
 
     # Format data rows
     data_lines: list[str] = []
     for row in data:
-        row_line = "|" + "|".join(
-            [f" {str(item):<{column_widths[i]}} " for i, item in enumerate(row)]
-            ) + "|"
+        row_line = (
+            "|"
+            + "|".join(
+                [f" {str(item):<{column_widths[i]}} " for i, item in enumerate(row)]
+            )
+            + "|"
+        )
         data_lines.append(row_line)
 
     # Combine all parts
     table_output = [separator, header_line, separator] + data_lines + [separator]
     return "\n".join(table_output)
 
+
 def parser_cmds() -> argparse.ArgumentParser:
-    '''
+    """
     Setup cli commands and return the parser
 
     :returns ArgumentParser: Parser loaded with all the commands
-    '''
+    """
 
     parser = argparse.ArgumentParser(description=f"{PROG_NAME} CLI")
     sub = parser.add_subparsers(dest="command")
@@ -135,20 +149,15 @@ def parser_cmds() -> argparse.ArgumentParser:
     add_cmd = sub.add_parser("add", help="Insert new to-do item into your list. ")
     add_cmd.add_argument("name")
     add_cmd.add_argument(
-        "-d",
-        "--description",
-        required=False,
-        help="short description of the task"
+        "-d", "--description", required=False, help="short description of the task"
     )
     add_cmd.add_argument(
-        "-p",
-        "--priority",
-        type=int,
-        default=3,
-        help="priority of task. (1) = Highest"
+        "-p", "--priority", type=int, default=3, help="priority of task. (1) = Highest"
     )
     add_cmd.add_argument("--due", default=None, help="due date of the task")
-    add_cmd.add_argument("-v", "--verbose", action="store_true", help="print modified task list. ")
+    add_cmd.add_argument(
+        "-v", "--verbose", action="store_true", help="print modified task list. "
+    )
 
     # Del Command
     del_cmd = sub.add_parser("del", help="Delete an existing to-do item. ")
@@ -157,9 +166,11 @@ def parser_cmds() -> argparse.ArgumentParser:
         "-m",
         "--multiple",
         action="store_true",
-        help="accept multiple deletion id's. must be separated by comma"
+        help="accept multiple deletion id's. must be separated by comma",
     )
-    del_cmd.add_argument("-v", "--verbose", action="store_true", help="print modified task list. ")
+    del_cmd.add_argument(
+        "-v", "--verbose", action="store_true", help="print modified task list. "
+    )
 
     # List Command
     list_cmd = sub.add_parser("list", help="List to-do tasks. ")
@@ -167,41 +178,32 @@ def parser_cmds() -> argparse.ArgumentParser:
         "-s",
         "--sort",
         choices=["priority", "due", "created", "completed"],
-        help="list by type. "
+        help="list by type. ",
     )
 
     # Edit Command
     edt_cmd = sub.add_parser("task", help="Edit an existing tasks. ")
     edt_cmd.add_argument("id", help="ID for to-do to be edited. ")
     edt_cmd.add_argument(
-        "-c",
-        "--completed",
-        action="store_true",
-        help="set task comepletion. "
+        "-c", "--completed", action="store_true", help="set task comepletion. "
     )
+    edt_cmd.add_argument("-d", "--due", help="change due date of task. ")
+    edt_cmd.add_argument("-p", "--priority", type=int, help="change priority of task. ")
     edt_cmd.add_argument(
-        "-d",
-        "--due",
-        help="change due date of task. "
+        "-v", "--verbose", action="store_true", help="display edited task list. "
     )
-    edt_cmd.add_argument(
-        "-p",
-        "--priority",
-        type=int,
-        help="change priority of task. "
-    )
-    edt_cmd.add_argument("-v", "--verbose", action="store_true", help="display edited task list. ")
 
     # Exit Command
     sub.add_parser("exit", help="Exit the CLI. ")
 
     return parser
 
+
 # Classes
 class User:
-    '''
+    """
     User abstraction for handling specific-user related actions
-    '''
+    """
 
     def __init__(self) -> None:
         self.conn = sqlite3.connect(DATA_FILE)
@@ -213,9 +215,9 @@ class User:
         self.conn.close()
 
     def load(self) -> None:
-        '''
+        """
         Load database for user
-        '''
+        """
 
         # Create and/or load table from database
         cursor = self.conn.cursor()
@@ -235,33 +237,32 @@ class User:
 
     @error_boundary(err_msg="Failed to execute command. ")
     def command(self, args: argparse.Namespace | Any) -> None:
-        '''
+        """
         Execute the command for given args
 
         :param args: Arguments from the command
         :type args: Namespace
-        '''
+        """
 
         cursor = self.conn.cursor()
 
-        match(args.command):
+        match args.command:
             case "add":
-                cursor.execute("""
+                cursor.execute(
+                    """
                         INSERT INTO tasks (title, description, priority, due, created)
                         VALUES (?, ?, ?, ?, ?)
                     """,
-                    tuple(args.__dict__.values())[1:-1] + (TODAY.isoformat(),)
+                    tuple(args.__dict__.values())[1:-1] + (TODAY.isoformat(),),
                 )
-                print(
-                    f"> {color("Created task:", "BLUE")} '{args.name}'"
-                )
+                print(f"> {color('Created task:', 'BLUE')} '{args.name}'")
 
             case "list":
                 # Process no items
                 size = cursor.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
                 if size < 1:
                     print(
-                        f"> {color("No items saved. ", "YELLOW")}\n> {color("Type -h for help, use 'add -h' to create new task", "YELLOW")}"
+                        f"> {color('No items saved. ', 'YELLOW')}\n> {color("Type -h for help, use 'add -h' to create new task", 'YELLOW')}"
                     )
                     return
 
@@ -271,18 +272,24 @@ class User:
 
                 # Sort by specific
                 if args.sort:
-                    cursor.execute(f"SELECT * FROM tasks ORDER BY {args.sort} {args.sort=="completed" and "DESC" or "ASC"}")
+                    cursor.execute(
+                        f"SELECT * FROM tasks ORDER BY {args.sort} {args.sort == 'completed' and 'DESC' or 'ASC'}"
+                    )
 
                 rows = cursor.fetchall()
                 tbl = create_table(
-                    ["ID", "Task", "Description", "Priority", "Due", "Created", "Completed"],
                     [
-                        list(row) for row in rows
-                    ]
+                        "ID",
+                        "Task",
+                        "Description",
+                        "Priority",
+                        "Due",
+                        "Created",
+                        "Completed",
+                    ],
+                    [list(row) for row in rows],
                 )
-                print(
-                    f"> {color("List of TO-DO's", "BLUE")}"
-                )
+                print(f"> {color("List of TO-DO's", 'BLUE')}")
                 print(tbl)
 
             case "task":
@@ -291,10 +298,7 @@ class User:
                     f"SELECT * FROM tasks WHERE id = {args.id}"
                 ).fetchone()
 
-                values_map = dict(zip(
-                    [desc[0] for desc in cursor.description],
-                    row
-                ))
+                values_map = dict(zip([desc[0] for desc in cursor.description], row))
 
                 # Updates to apply
                 updates: dict[str, str] = {}
@@ -306,21 +310,17 @@ class User:
 
                 # Update changed tasks
                 cursor.execute(
-                    f"UPDATE tasks SET {", ".join(item + " = ?" for item in updates.keys())} WHERE id = ?",
-                    tuple(updates.values()) + (args.id,)
+                    f"UPDATE tasks SET {', '.join(item + ' = ?' for item in updates.keys())} WHERE id = ?",
+                    tuple(updates.values()) + (args.id,),
                 )
-                print(
-                    f"> {color("Updated to-do ", "YELLOW")}"
-                )
+                print(f"> {color('Updated to-do ', 'YELLOW')}")
 
             case "del":
                 cursor.execute(
-                    f"DELETE FROM tasks WHERE id IN ({','.join('?' * len(args.id.strip(",")))})",
-                    (args.id)
+                    f"DELETE FROM tasks WHERE id IN ({','.join('?' * len(args.id.strip(',')))})",
+                    (args.id),
                 )
-                print(
-                    f"> {color("Deleted to-do(s) ", "RED")}"
-                )
+                print(f"> {color('Deleted to-do(s) ', 'RED')}")
 
             case _:
                 pass
@@ -332,21 +332,20 @@ class User:
         # Print changes if command is verbose
         # Not exactly the intended use of the word
         if hasattr(args, "verbose") and args.verbose:
-            self.command(
-                self._default_sort
-            )
+            self.command(self._default_sort)
+
 
 # Main Entry
 def main() -> None:
-    '''
+    """
     Main loop for the CLI
-    '''
+    """
     in_cli = True
     user = User()
     parser = parser_cmds()
 
     # Output welcome message with todays' date
-    print("\n" + f"{WELCOME_MSG}{"":>{4}}<{TODAY.isoformat()}>")
+    print("\n" + f"{WELCOME_MSG}{'':>{4}}<{TODAY.isoformat()}>")
     print(WELCOME_SUB)
 
     while in_cli:
@@ -375,6 +374,7 @@ def main() -> None:
 
     # Delete user session on exit
     del user
+
 
 if __name__ == "__main__":
     try:
