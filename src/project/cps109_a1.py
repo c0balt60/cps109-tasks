@@ -12,8 +12,6 @@ Description:
     By creating this tool myself, I feel a greater sense of responsibility in completing tasks that I set for myself (or else what would be the point of this???).
 
     For native command line parsing, I used the argparse module, and for data storing I used the sqlite3 module.
-
-
 """
 # Disable linter warnings for prod
 # pylint: disable=broad-except, line-too-long, missing-function-docstring, consider-iterating-dictionary
