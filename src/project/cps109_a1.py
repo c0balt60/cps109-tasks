@@ -2,6 +2,16 @@
 Author: Andrii Naumenko
 Date: 2025-11-14
 Description:
+    Throughout my years of programming and living,
+      I always found myself forgetting and/or ignoring some daily tasks that I set for myself, but didn’t actually write down.
+
+    I know forcing myself to write down these tasks won’t change anything as I am stubborn.
+    However, I can intrigue myself enough to stick with a solution if I write a simple and lightweight, but intuitive and straightforward application for making to-do’s.
+
+    Therefore for this project, I decided to write my own “Command Line Interface” that can create, modify, delete, and list to-do’s.
+    By creating this tool myself, I feel a greater sense of responsibility in completing tasks that I set for myself (or else what would be the point of this???).
+
+    For native command line parsing, I used the argparse module, and for data storing I used the sqlite3 module.
 
 
 """
