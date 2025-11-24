@@ -1,3 +1,5 @@
+# Disable linter warnings for prod
+# pylint: disable=broad-except, line-too-long, missing-function-docstring, consider-iterating-dictionary
 """
 Author: Andrii Naumenko
 Date: 2025-11-14
@@ -13,8 +15,6 @@ Description:
 
     For native command line parsing, I used the argparse module, and for data storing I used the sqlite3 module.
 """
-# Disable linter warnings for prod
-# pylint: disable=broad-except, line-too-long, missing-function-docstring, consider-iterating-dictionary
 
 import argparse
 from datetime import timedelta, date as Date
